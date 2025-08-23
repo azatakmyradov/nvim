@@ -164,4 +164,39 @@ return {
       },
     },
   },
+  {
+    'ibhagwan/fzf-lua',
+    -- optional for icon support
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
+    config = function()
+      require('fzf-lua').setup {
+        keymap = {
+          fzf = {
+            ['ctrl-q'] = 'select-all+accept',
+          },
+        },
+      }
+    end,
+    opts = {
+      winopts = {
+        preview = {
+          hidden = true,
+        },
+      },
+    },
+    keys = {
+      { '<leader>f', ":lua require('fzf-lua').files()<CR>" },
+      { '<leader>F', ":lua require('fzf-lua').files({ no_ignore = true })<CR>" },
+      { '<leader>sg', ":lua require('fzf-lua').live_grep_native()<CR>" },
+      { '<leader>G', ":lua require('fzf-lua').grep_project()<CR>" },
+      { '<leader>sr', ":lua require('fzf-lua').resume()<CR>" },
+      { '<leader>ss', ':FzfLua<CR>' },
+      { '<leader>sd', ":lua require('fzf-lua').diagnostics_document()<CR>" },
+      { '<leader>sb', ":lua require('fzf-lua').buffers()<CR>" },
+      { '<leader>/', ":lua require('fzf-lua').grep_curbuf()<CR>" },
+      { '<leader>sn', ":lua require('fzf-lua').files({ cwd = vim.fn.stdpath 'config' })<CR>" },
+      { '<leader>sh', ":lua require('fzf-lua').helptags()<CR>" },
+      { '<leader>sk', ":lua require('fzf-lua').keymaps()<CR>" },
+    },
+  },
 }
