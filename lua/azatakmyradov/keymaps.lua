@@ -97,7 +97,7 @@ vim.keymap.set('n', '<C-e>', ui.toggle_quick_menu, { noremap = true, silent = tr
 vim.keymap.set('n', '<C-h>', [[<cmd>lua require('harpoon.ui').nav_file(1)<CR>]])
 vim.keymap.set('n', '<C-t>', [[<cmd>lua require('harpoon.ui').nav_file(2)<CR>]])
 vim.keymap.set('n', '<C-n>', [[<cmd>lua require('harpoon.ui').nav_file(3)<CR>]])
--- vim.keymap.set('n', '<C-s>', [[<cmd>lua require('harpoon.ui').nav_file(4)<CR>]])
+vim.keymap.set('n', '<C-s>', [[<cmd>lua require('harpoon.ui').nav_file(4)<CR>]])
 
 -- UndoTree
 vim.keymap.set('n', '<leader>u', ':UndotreeToggle<CR>')
@@ -110,9 +110,9 @@ vim.keymap.set('n', "<leader>'d", ':Gdiffsplit<CR>')
 vim.keymap.set('n', "<leader>'g", ':Git<CR>')
 
 -- Save file
-vim.keymap.set('n', '<C-s>', ':w<CR>')
-vim.keymap.set('i', '<C-s>', '<Esc>:w<CR>')
-vim.keymap.set('v', '<C-s>', '<Esc>:w<CR>')
+-- vim.keymap.set('n', '<C-s>', ':w<CR>')
+-- vim.keymap.set('i', '<C-s>', '<Esc>:w<CR>')
+-- vim.keymap.set('v', '<C-s>', '<Esc>:w<CR>')
 
 -- Enter ZenMode
 vim.keymap.set('n', '<leader>zz', ':ZenMode<CR>')
@@ -145,9 +145,3 @@ vim.keymap.set('n', '<leader>of', ':lua vim.diagnostic.open_float()<CR>')
 
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
-
--- Keybinds to make split navigation easier.
-vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left window' })
-vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
-vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
-vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })

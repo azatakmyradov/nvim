@@ -6,7 +6,7 @@ return {
       local lint = require 'lint'
       lint.linters_by_ft = {
         eslint = { 'js', 'jsx', 'ts', 'tsx' },
-        php = { 'php' },
+        php = { 'php', 'phpstan' },
         phpcs = { 'php' },
         golangcilint = { 'go', 'golang' },
       }
