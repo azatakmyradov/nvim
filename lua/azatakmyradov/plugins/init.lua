@@ -157,7 +157,12 @@ return {
         'nvim-lua/plenary.nvim',
         'neovim/nvim-lspconfig',
       },
-      opts = {},
+      opts = {
+        lspconfig = {
+          enabled = false,
+          options = {},
+        },
+      },
       keys = {
         { '<leader>pm', ':lua require("phpactor").rpc("context_menu", {})<CR>' },
         { '<leader>pn', ':lua require("phpactor").rpc("new_class", {})<CR>' },
