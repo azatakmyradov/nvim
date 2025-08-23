@@ -1,24 +1,6 @@
 return {
   {
     {
-      'dmtrKovalenko/fff.nvim',
-      build = 'cargo build --release',
-      -- or if you are using nixos
-      -- build = "nix run .#release",
-      opts = {
-        -- pass here all the options
-      },
-      keys = {
-        {
-          '<leader>f', -- try it if you didn't it is a banger keybinding for a picker
-          function()
-            require('fff').find_files() -- or find_in_git_root() if you only want git files
-          end,
-          desc = 'Open file picker',
-        },
-      },
-    },
-    {
       'stevearc/oil.nvim',
       ---@module 'oil'
       ---@type oil.SetupOpts
@@ -145,6 +127,40 @@ return {
           additional_vim_regex_highlighting = { 'ruby' },
         },
         indent = { enable = true, disable = { 'ruby' } },
+      },
+    },
+  },
+  {
+    'adalessa/laravel.nvim',
+    dependencies = {
+      'tpope/vim-dotenv',
+      'nvim-telescope/telescope.nvim',
+      'MunifTanjim/nui.nvim',
+      'kevinhwang91/promise-async',
+    },
+    cmd = { 'Laravel' },
+    keys = {
+      { '<leader>la', ':Laravel artisan<cr>' },
+      { '<leader>lr', ':Laravel routes<cr>' },
+      { '<leader>lm', ':Laravel related<cr>' },
+    },
+    event = { 'VeryLazy' },
+    opts = {},
+    config = true,
+  },
+  -- Lua
+  {
+    {
+      'gbprod/phpactor.nvim',
+      ft = 'php',
+      dependencies = {
+        'nvim-lua/plenary.nvim',
+        'neovim/nvim-lspconfig',
+      },
+      opts = {},
+      keys = {
+        { '<leader>pm', ':lua require("phpactor").rpc("context_menu", {})<CR>' },
+        { '<leader>pn', ':lua require("phpactor").rpc("new_class", {})<CR>' },
       },
     },
   },
