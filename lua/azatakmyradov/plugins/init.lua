@@ -231,4 +231,13 @@ return {
       },
     },
   },
+
+  { 'folke/zen-mode.nvim' },
+  { 'windwp/nvim-ts-autotag' },
+  {
+    'andymass/vim-matchup',
+    config = function()
+      vim.g.matchup_matchparen_enabled = 0
+    end,
+  },
 }
