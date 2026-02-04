@@ -63,13 +63,6 @@ return {
 
     { 'stevearc/dressing.nvim' },
 
-    {
-      'nvzone/typr',
-      dependencies = 'nvzone/volt',
-      opts = {},
-      cmd = { 'Typr', 'TyprStats' },
-    },
-
     { -- Collection of various small independent plugins/modules
       'echasnovski/mini.nvim',
       config = function()
@@ -123,7 +116,7 @@ return {
     opts = {},
     config = true,
   },
-  -- Lua
+
   {
     {
       'gbprod/phpactor.nvim',
@@ -144,6 +137,7 @@ return {
       },
     },
   },
+
   {
     'ibhagwan/fzf-lua',
     -- optional for icon support
@@ -179,35 +173,9 @@ return {
       { '<leader>sk', ":lua require('fzf-lua').keymaps()<CR>" },
     },
   },
-  {
-    'afonsofrancof/worktrees.nvim',
-    event = 'VeryLazy',
-    opts = {
-      -- Specify where to create worktrees relative to git common dir
-      -- The common dir is the .git dir in a normal repo or the root dir of a bare repo
-      base_path = '..', -- Parent directory of common dir
 
-      -- Template for worktree folder names
-      -- This is only used if you don't specify the folder name when creating the worktree
-      path_template = '{branch}', -- Default: use branch name
+  { 'folke/neodev.nvim' },
 
-      -- Command names (optional)
-      commands = {
-        create = 'WorktreeCreate',
-        delete = 'WorktreeDelete',
-        switch = 'WorktreeSwitch',
-      },
-
-      -- Key mappings for interactive UI (optional)
-      mappings = {
-        create = '<leader>wc',
-        delete = '<leader>wd',
-        switch = '<leader>ws',
-      },
-    },
-  },
-
-  { 'folke/zen-mode.nvim' },
   {
     'andymass/vim-matchup',
     config = function()
