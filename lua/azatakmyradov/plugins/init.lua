@@ -1,14 +1,92 @@
+local hide_gitignored_dirs = true
+
+local function parse_gitignored_dirs(proc)
+  local result = proc:wait()
+  local ret = {}
+  if result.code ~= 0 then
+    return ret
+  end
+
+  for line in vim.gsplit(result.stdout, '\n', { plain = true, trimempty = true }) do
+    if line:sub(-1) == '/' then
+      ret[line:sub(1, -2)] = true
+    end
+  end
+
+  return ret
+end
+
+local function new_gitignored_dir_cache()
+  return setmetatable({}, {
+    __index = function(self, dir)
+      local proc = vim.system({ 'git', 'ls-files', '--ignored', '--exclude-standard', '--others', '--directory' }, {
+        cwd = dir,
+        text = true,
+      })
+      local ret = parse_gitignored_dirs(proc)
+      rawset(self, dir, ret)
+      return ret
+    end,
+  })
+end
+
+local gitignored_dirs = new_gitignored_dir_cache()
+local refresh_callback_patched = false
+
+local function is_hidden_file(name, bufnr)
+  if not hide_gitignored_dirs then
+    return false
+  end
+
+  local dir = require('oil').get_current_dir(bufnr)
+  if not dir then
+    return false
+  end
+
+  return gitignored_dirs[dir][name] == true
+end
+
+local function ensure_refresh_resets_gitignored_cache()
+  if refresh_callback_patched then
+    return
+  end
+
+  local refresh = require('oil.actions').refresh
+  local orig_refresh = refresh.callback
+  refresh.callback = function(...)
+    gitignored_dirs = new_gitignored_dir_cache()
+    return orig_refresh(...)
+  end
+  refresh_callback_patched = true
+end
+
 return {
   {
     {
       'stevearc/oil.nvim',
       ---@module 'oil'
       ---@type oil.SetupOpts
-      opts = {
-        view_options = {
-          show_hidden = true,
-        },
-      },
+      opts = function()
+        ensure_refresh_resets_gitignored_cache()
+
+        return {
+          keymaps = {
+            ['g.'] = false,
+            ['<leader>og'] = {
+              desc = 'Toggle gitignored dirs',
+              mode = 'n',
+              callback = function()
+                hide_gitignored_dirs = not hide_gitignored_dirs
+                require('oil').set_is_hidden_file(is_hidden_file)
+              end,
+            },
+          },
+          view_options = {
+            show_hidden = false,
+            is_hidden_file = is_hidden_file,
+          },
+        }
+      end,
       -- Optional dependencies
       dependencies = { { 'echasnovski/mini.icons', opts = {} } },
       -- dependencies = { "nvim-tree/nvim-web-devicons" }, -- use if prefer nvim-web-devicons
@@ -46,16 +124,12 @@ return {
     -- Undo Tree
     { 'mbbill/undotree' },
 
-    -- auto close html tags
-    { 'windwp/nvim-ts-autotag' },
-
     -- Tailwind Tools
     {
       'luckasRanarison/tailwind-tools.nvim',
       name = 'tailwind-tools',
       build = ':UpdateRemotePlugins',
       dependencies = {
-        'nvim-treesitter/nvim-treesitter',
         'nvim-telescope/telescope.nvim', -- optional
         'neovim/nvim-lspconfig', -- optional
       },
@@ -99,25 +173,6 @@ return {
     },
   },
   {
-    'adalessa/laravel.nvim',
-    dependencies = {
-      'tpope/vim-dotenv',
-      'nvim-telescope/telescope.nvim',
-      'MunifTanjim/nui.nvim',
-      'kevinhwang91/promise-async',
-    },
-    cmd = { 'Laravel' },
-    keys = {
-      { '<leader>la', ':Laravel artisan<cr>' },
-      { '<leader>lr', ':Laravel routes<cr>' },
-      { '<leader>lm', ':Laravel related<cr>' },
-    },
-    event = { 'VeryLazy' },
-    opts = {},
-    config = true,
-  },
-
-  {
     {
       'gbprod/phpactor.nvim',
       ft = 'php',
@@ -159,10 +214,7 @@ return {
       },
     },
     keys = {
-      { '<leader>f', ":lua require('fzf-lua').files()<CR>" },
       { '<leader>F', ":lua require('fzf-lua').files({ no_ignore = true })<CR>" },
-      { '<leader>sg', ":lua require('fzf-lua').live_grep_native()<CR>" },
-      { '<leader>G', ":lua require('fzf-lua').grep_project()<CR>" },
       { '<leader>sr', ":lua require('fzf-lua').resume()<CR>" },
       { '<leader>ss', ':FzfLua<CR>' },
       { '<leader>sd', ":lua require('fzf-lua').diagnostics_document()<CR>" },
@@ -182,4 +234,6 @@ return {
       vim.g.matchup_matchparen_enabled = 0
     end,
   },
+
+  { 'github/copilot.vim' },
 }

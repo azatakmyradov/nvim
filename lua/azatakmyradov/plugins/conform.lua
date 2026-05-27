@@ -24,6 +24,7 @@ return { -- Autoformat
       svelte = { 'prettier', 'rustywind' },
       blade = { 'blade-formatter', 'rustywind' },
       php = { 'pint', 'php_cs_fixer' },
+      json = { 'fixjson' },
     },
   },
 }

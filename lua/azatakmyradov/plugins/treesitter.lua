@@ -1,81 +1,169 @@
+local parsers = {
+  'bash',
+  'c',
+  'css',
+  'diff',
+  'dockerfile',
+  'git_config',
+  'git_rebase',
+  'gitattributes',
+  'gitcommit',
+  'gitignore',
+  'go',
+  'gomod',
+  'gosum',
+  'gowork',
+  'html',
+  'javascript',
+  'jsdoc',
+  'json',
+  'lua',
+  'luadoc',
+  'luap',
+  'markdown',
+  'markdown_inline',
+  'php',
+  'printf',
+  'python',
+  'query',
+  'regex',
+  'toml',
+  'tsx',
+  'typescript',
+  'vim',
+  'vimdoc',
+  'xml',
+  'yaml',
+}
+
+local function has_query(lang, query)
+  local ok, parsed_query = pcall(vim.treesitter.query.get, lang, query)
+  return ok and parsed_query ~= nil
+end
+
+local function start_treesitter(buf, opts)
+  local ft = vim.bo[buf].filetype
+  local lang = vim.treesitter.language.get_lang(ft)
+
+  if not lang then
+    return
+  end
+
+  if opts.highlight.enable and has_query(lang, 'highlights') then
+    pcall(vim.treesitter.start, buf, lang)
+  end
+
+  if opts.indent.enable and has_query(lang, 'indents') then
+    vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+  end
+
+  if opts.folds.enable and has_query(lang, 'folds') then
+    vim.wo.foldmethod = 'expr'
+    vim.wo.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
+  end
+end
+
 return {
   {
     'nvim-treesitter/nvim-treesitter',
-    branch = 'master',
-    lazy = false,
+    branch = 'main',
+    version = false,
     build = ':TSUpdate',
-    opts = function()
-      local parsers = {
-        'bash',
-        'css',
-        'diff',
-        'dockerfile',
-        'git_config',
-        'git_rebase',
-        'gitattributes',
-        'gitcommit',
-        'gitignore',
-        'go',
-        'gomod',
-        'gosum',
-        'gowork',
-        'html',
-        'javascript',
-        'json',
-        'lua',
-        'luadoc',
-        'markdown',
-        'markdown_inline',
-        'php',
-        'query',
-        'regex',
-        'toml',
-        'tsx',
-        'typescript',
-        'vim',
-        'vimdoc',
-        'yaml',
+    event = { 'BufReadPost', 'BufNewFile', 'VeryLazy' },
+    cmd = { 'TSUpdate', 'TSInstall', 'TSLog', 'TSUninstall' },
+    opts = {
+      install_dir = vim.fn.stdpath 'data' .. '/site',
+      ensure_installed = parsers,
+      highlight = { enable = true },
+      indent = { enable = true },
+      folds = { enable = true },
+    },
+    config = function(_, opts)
+      local ts = require 'nvim-treesitter'
+
+      ts.setup {
+        install_dir = opts.install_dir,
       }
 
-      return {
-        parsers = parsers,
-        legacy = {
-          ensure_installed = parsers,
-          auto_install = true,
-          highlight = {
-            enable = true,
-          },
-          indent = {
-            enable = true,
-          },
-          autotag = {
-            enable = true,
-          },
-        },
-        modern = {
-          install_dir = vim.fn.stdpath 'data' .. '/site',
-        },
-      }
-    end,
-    config = function(_, opts)
-      local has_legacy, legacy = pcall(require, 'nvim-treesitter.configs')
-      if has_legacy then
-        legacy.setup(opts.legacy)
-      else
-        local treesitter = require 'nvim-treesitter'
-        treesitter.setup(opts.modern)
-        treesitter.install(opts.parsers)
+      local installed = {}
+      for _, lang in ipairs(ts.get_installed()) do
+        installed[lang] = true
+      end
+
+      local missing = vim.tbl_filter(function(lang)
+        return not installed[lang]
+      end, opts.ensure_installed)
+
+      if #missing > 0 then
+        ts.install(missing, { summary = true })
       end
 
       vim.api.nvim_create_autocmd('FileType', {
-        pattern = '*',
+        group = vim.api.nvim_create_augroup('azatakmyradov_treesitter', { clear = true }),
         callback = function(ev)
-          pcall(vim.treesitter.start, ev.buf)
-          pcall(function()
-            vim.bo[ev.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
-          end)
+          start_treesitter(ev.buf, opts)
         end,
       })
     end,
+  },
+
+  {
+    'nvim-treesitter/nvim-treesitter-textobjects',
+    branch = 'main',
+    event = 'VeryLazy',
+    opts = {
+      move = {
+        enable = true,
+        set_jumps = true,
+      },
+    },
+    config = function(_, opts)
+      require('nvim-treesitter-textobjects').setup(opts)
+
+      local moves = {
+        goto_next_start = { [']f'] = '@function.outer', [']c'] = '@class.outer', [']a'] = '@parameter.inner' },
+        goto_next_end = { [']F'] = '@function.outer', [']C'] = '@class.outer', [']A'] = '@parameter.inner' },
+        goto_previous_start = { ['[f'] = '@function.outer', ['[c'] = '@class.outer', ['[a'] = '@parameter.inner' },
+        goto_previous_end = { ['[F'] = '@function.outer', ['[C'] = '@class.outer', ['[A'] = '@parameter.inner' },
+      }
+
+      local function attach(buf)
+        local ft = vim.bo[buf].filetype
+        local lang = vim.treesitter.language.get_lang(ft)
+
+        if not opts.move.enable or not lang or not has_query(lang, 'textobjects') then
+          return
+        end
+
+        for method, keymaps in pairs(moves) do
+          for key, query in pairs(keymaps) do
+            vim.keymap.set({ 'n', 'x', 'o' }, key, function()
+              if vim.wo.diff and key:find '[cC]' then
+                return vim.cmd('normal! ' .. key)
+              end
+
+              require('nvim-treesitter-textobjects.move')[method](query, 'textobjects')
+            end, {
+              buffer = buf,
+              desc = (key:sub(1, 1) == '[' and 'Prev' or 'Next') .. ' Tree-sitter Object',
+              silent = true,
+            })
+          end
+        end
+      end
+
+      vim.api.nvim_create_autocmd('FileType', {
+        group = vim.api.nvim_create_augroup('azatakmyradov_treesitter_textobjects', { clear = true }),
+        callback = function(ev)
+          attach(ev.buf)
+        end,
+      })
+    end,
+  },
+
+  {
+    'windwp/nvim-ts-autotag',
+    event = { 'BufReadPost', 'BufNewFile' },
+    opts = {},
   },
 }

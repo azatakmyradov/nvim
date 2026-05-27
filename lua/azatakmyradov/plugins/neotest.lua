@@ -3,7 +3,6 @@ return {
   dependencies = {
     'nvim-lua/plenary.nvim',
     'antoinemadec/FixCursorHold.nvim',
-    'nvim-treesitter/nvim-treesitter',
     'V13Axel/neotest-pest',
     'nvim-neotest/nvim-nio',
     'nvim-neotest/neotest-go',

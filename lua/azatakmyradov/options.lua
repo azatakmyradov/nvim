@@ -5,6 +5,8 @@ vim.g.maplocalleader = ' '
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = false
 
+vim.o.termguicolors = true
+
 -- Relative line numbers
 vim.o.relativenumber = true
 
@@ -65,6 +67,10 @@ vim.opt.shiftwidth = 4
 
 -- [[ Do not wrap lines]]
 vim.opt.wrap = false
+
+-- Keep folds available, but open by default.
+vim.o.foldlevel = 99
+vim.o.foldlevelstart = 99
 
 -- Set highlight on search, but clear on pressing <Esc> in normal mode
 vim.opt.hlsearch = true
