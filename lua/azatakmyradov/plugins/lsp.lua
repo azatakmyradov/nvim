@@ -124,7 +124,7 @@ return {
         tailwindcss = {},
         gopls = {},
         rust_analyzer = {},
-        ts_ls = {},
+        tsgo = {},
         lua_ls = {
           settings = {
             Lua = {
@@ -145,6 +145,7 @@ return {
         'php-cs-fixer',
         'pint',
         'prettier',
+        'oxfmt',
         'rustywind',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
