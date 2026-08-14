@@ -124,7 +124,7 @@ return {
         tailwindcss = {},
         gopls = {},
         rust_analyzer = {},
-        tsgo = {},
+        ts_ls = {},
         lua_ls = {
           settings = {
             Lua = {
