@@ -2,10 +2,25 @@ return {
   'nvim-neotest/neotest',
   dependencies = {
     'nvim-lua/plenary.nvim',
-    'antoinemadec/FixCursorHold.nvim',
     'V13Axel/neotest-pest',
     'nvim-neotest/nvim-nio',
     'nvim-neotest/neotest-go',
+  },
+  keys = {
+    {
+      '<leader>tn',
+      function()
+        require('neotest').run.run()
+      end,
+      desc = 'Run nearest test',
+    },
+    {
+      '<leader>tf',
+      function()
+        require('neotest').run.run(vim.fn.expand '%')
+      end,
+      desc = 'Run file tests',
+    },
   },
   config = function()
     local neotest_ns = vim.api.nvim_create_namespace 'neotest'
@@ -25,13 +40,5 @@ return {
         require 'neotest-go',
       },
     }
-
-    -- [Keymaps]
-    vim.keymap.set('n', '<leader>tn', function()
-      require('neotest').run.run()
-    end)
-    vim.keymap.set('n', '<leader>tf', function()
-      require('neotest').run.run(vim.fn.expand '%')
-    end)
   end,
 }

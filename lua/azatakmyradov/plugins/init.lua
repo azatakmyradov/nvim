@@ -1,13 +1,12 @@
 local hide_gitignored_dirs = true
 
-local function parse_gitignored_dirs(proc)
-  local result = proc:wait()
+local function parse_gitignored_dirs(result)
   local ret = {}
   if result.code ~= 0 then
     return ret
   end
 
-  for line in vim.gsplit(result.stdout, '\n', { plain = true, trimempty = true }) do
+  for line in vim.gsplit(result.stdout or '', '\0', { plain = true, trimempty = true }) do
     if line:sub(-1) == '/' then
       ret[line:sub(1, -2)] = true
     end
@@ -16,24 +15,43 @@ local function parse_gitignored_dirs(proc)
   return ret
 end
 
+local gitignored_dirs
+local is_hidden_file
+
 local function new_gitignored_dir_cache()
   return setmetatable({}, {
     __index = function(self, dir)
-      local proc = vim.system({ 'git', 'ls-files', '--ignored', '--exclude-standard', '--others', '--directory' }, {
-        cwd = dir,
-        text = true,
-      })
-      local ret = parse_gitignored_dirs(proc)
-      rawset(self, dir, ret)
-      return ret
+      local pending = {}
+      rawset(self, dir, pending)
+      vim.system(
+        { 'git', 'ls-files', '-z', '--ignored', '--exclude-standard', '--others', '--directory' },
+        {
+          cwd = dir,
+          text = true,
+        },
+        vim.schedule_wrap(function(result)
+          -- A manual refresh may have replaced this cache while Git was running.
+          if self ~= gitignored_dirs then
+            return
+          end
+          rawset(self, dir, parse_gitignored_dirs(result))
+          for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+            if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype == 'oil' and vim.bo[buf].modified then
+              return
+            end
+          end
+          require('oil').set_is_hidden_file(is_hidden_file)
+        end)
+      )
+      return pending
     end,
   })
 end
 
-local gitignored_dirs = new_gitignored_dir_cache()
+gitignored_dirs = new_gitignored_dir_cache()
 local refresh_callback_patched = false
 
-local function is_hidden_file(name, bufnr)
+is_hidden_file = function(name, bufnr)
   if not hide_gitignored_dirs then
     return false
   end
@@ -116,26 +134,21 @@ return {
     -- Git related plugins
     {
       'tpope/vim-fugitive',
+      cmd = { 'Git', 'G', 'Gdiffsplit', 'Gvdiffsplit', 'Gedit', 'Gread', 'Gwrite' },
       dependencies = {
         'tpope/vim-rhubarb',
       },
     },
 
     -- Undo Tree
-    { 'mbbill/undotree' },
+    { 'mbbill/undotree', cmd = 'UndotreeToggle' },
 
-    -- Tailwind Tools
     {
-      'luckasRanarison/tailwind-tools.nvim',
-      name = 'tailwind-tools',
-      build = ':UpdateRemotePlugins',
-      dependencies = {
-        'nvim-telescope/telescope.nvim', -- optional
-        'neovim/nvim-lspconfig', -- optional
-      },
+      'folke/snacks.nvim',
+      priority = 1000,
+      lazy = false,
+      opts = { input = { enabled = true }, zen = { enabled = true } },
     },
-
-    { 'stevearc/dressing.nvim' },
 
     { -- Collection of various small independent plugins/modules
       'echasnovski/mini.nvim',
@@ -197,16 +210,18 @@ return {
     'ibhagwan/fzf-lua',
     -- optional for icon support
     dependencies = { 'nvim-tree/nvim-web-devicons' },
-    config = function()
-      require('fzf-lua').setup {
-        keymap = {
-          fzf = {
-            ['ctrl-q'] = 'select-all+accept',
-          },
-        },
-      }
+    init = function()
+      vim.ui.select = function(...)
+        require 'fzf-lua'
+        return vim.ui.select(...)
+      end
+    end,
+    config = function(_, opts)
+      require('fzf-lua').setup(opts)
+      require('fzf-lua').register_ui_select()
     end,
     opts = {
+      keymap = { fzf = { ['ctrl-q'] = 'select-all+accept' } },
       winopts = {
         preview = {
           hidden = true,
@@ -226,14 +241,10 @@ return {
     },
   },
 
-  { 'folke/neodev.nvim' },
-
   {
     'andymass/vim-matchup',
     config = function()
       vim.g.matchup_matchparen_enabled = 0
     end,
   },
-
-  { 'github/copilot.vim' },
 }

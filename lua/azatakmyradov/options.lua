@@ -17,9 +17,8 @@ vim.o.mouse = 'a'
 vim.o.showmode = false
 
 -- Sync clipboard between OS and Neovim.
-vim.schedule(function()
-  vim.o.clipboard = 'unnamedplus'
-end)
+vim.g.clipboard = 'osc52'
+vim.opt.clipboard = 'unnamedplus'
 
 -- Enable break indent
 vim.o.breakindent = true

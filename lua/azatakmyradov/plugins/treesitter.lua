@@ -42,6 +42,11 @@ local function has_query(lang, query)
 end
 
 local function start_treesitter(buf, opts)
+  if require('azatakmyradov.buffers').is_large(buf) then
+    vim.treesitter.stop(buf)
+    vim.bo[buf].indentexpr = ''
+    return
+  end
   local ft = vim.bo[buf].filetype
   local lang = vim.treesitter.language.get_lang(ft)
 
@@ -56,10 +61,14 @@ local function start_treesitter(buf, opts)
   if opts.indent.enable and has_query(lang, 'indents') then
     vim.bo[buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
   end
+end
 
-  if opts.folds.enable and has_query(lang, 'folds') then
-    vim.wo.foldmethod = 'expr'
-    vim.wo.foldexpr = 'v:lua.vim.treesitter.foldexpr()'
+local function configure_folds(buf, opts)
+  local lang = vim.treesitter.language.get_lang(vim.bo[buf].filetype)
+  local enabled = opts.folds.enable and not require('azatakmyradov.buffers').is_large(buf) and lang and has_query(lang, 'folds')
+  for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+    vim.wo[win].foldmethod = enabled and 'expr' or 'manual'
+    vim.wo[win].foldexpr = enabled and 'v:lua.vim.treesitter.foldexpr()' or '0'
   end
 end
 
@@ -69,8 +78,7 @@ return {
     branch = 'main',
     version = false,
     build = ':TSUpdate',
-    event = { 'BufReadPost', 'BufNewFile', 'VeryLazy' },
-    cmd = { 'TSUpdate', 'TSInstall', 'TSLog', 'TSUninstall' },
+    lazy = false,
     opts = {
       install_dir = vim.fn.stdpath 'data' .. '/site',
       ensure_installed = parsers,
@@ -102,6 +110,13 @@ return {
         group = vim.api.nvim_create_augroup('azatakmyradov_treesitter', { clear = true }),
         callback = function(ev)
           start_treesitter(ev.buf, opts)
+          configure_folds(ev.buf, opts)
+        end,
+      })
+      vim.api.nvim_create_autocmd('BufWinEnter', {
+        group = 'azatakmyradov_treesitter',
+        callback = function(ev)
+          configure_folds(ev.buf, opts)
         end,
       })
     end,
@@ -128,6 +143,9 @@ return {
       }
 
       local function attach(buf)
+        if require('azatakmyradov.buffers').is_large(buf) then
+          return
+        end
         local ft = vim.bo[buf].filetype
         local lang = vim.treesitter.language.get_lang(ft)
 
@@ -158,6 +176,11 @@ return {
           attach(ev.buf)
         end,
       })
+      for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_loaded(buf) then
+          attach(buf)
+        end
+      end
     end,
   },
 

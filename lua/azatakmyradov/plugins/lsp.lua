@@ -29,6 +29,21 @@ return {
       'saghen/blink.cmp',
     },
     config = function()
+      local highlight_group = vim.api.nvim_create_augroup('dotfiles-lsp-highlight', { clear = true })
+      vim.api.nvim_create_autocmd('LspDetach', {
+        group = vim.api.nvim_create_augroup('dotfiles-lsp-detach', { clear = true }),
+        callback = function(event)
+          for _, client in ipairs(vim.lsp.get_clients { bufnr = event.buf }) do
+            if client.id ~= event.data.client_id and client:supports_method('textDocument/documentHighlight', event.buf) then
+              return
+            end
+          end
+          vim.api.nvim_clear_autocmds { group = highlight_group, buffer = event.buf }
+          if vim.api.nvim_buf_is_valid(event.buf) then
+            vim.api.nvim_buf_call(event.buf, vim.lsp.buf.clear_references)
+          end
+        end,
+      })
       vim.api.nvim_create_autocmd('LspAttach', {
         group = vim.api.nvim_create_augroup('dotfiles-lsp-attach', { clear = true }),
         callback = function(event)
@@ -53,26 +68,18 @@ return {
           --
           -- When you move your cursor, the highlights will be cleared (the second autocommand).
           local client = vim.lsp.get_client_by_id(event.data.client_id)
-          if client and client.server_capabilities.documentHighlightProvider then
-            local highlight_augroup = vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
+          if client and client:supports_method('textDocument/documentHighlight', event.buf) then
+            vim.api.nvim_clear_autocmds { group = highlight_group, buffer = event.buf }
             vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
               buffer = event.buf,
-              group = highlight_augroup,
+              group = highlight_group,
               callback = vim.lsp.buf.document_highlight,
             })
 
             vim.api.nvim_create_autocmd({ 'CursorMoved', 'CursorMovedI' }, {
               buffer = event.buf,
-              group = highlight_augroup,
+              group = highlight_group,
               callback = vim.lsp.buf.clear_references,
-            })
-
-            vim.api.nvim_create_autocmd('LspDetach', {
-              group = vim.api.nvim_create_augroup('kickstart-lsp-detach', { clear = true }),
-              callback = function(event2)
-                vim.lsp.buf.clear_references()
-                vim.api.nvim_clear_autocmds { group = 'kickstart-lsp-highlight', buffer = event2.buf }
-              end,
             })
           end
 
@@ -82,7 +89,8 @@ return {
           -- This may be unwanted, since they displace some of your code
           if client and client.server_capabilities.inlayHintProvider and vim.lsp.inlay_hint then
             map('<leader>th', function()
-              vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled())
+              local filter = { bufnr = event.buf }
+              vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled(filter), filter)
             end, '[T]oggle Inlay [H]ints')
           end
         end,
@@ -119,12 +127,59 @@ return {
 
       local capabilities = require('blink.cmp').get_lsp_capabilities()
 
+      local function native_typescript(root)
+        local tsc = vim.fs.joinpath(root, 'node_modules', '.bin', 'tsc')
+        local package = require('azatakmyradov.buffers').read_json(vim.fs.joinpath(root, 'node_modules', 'typescript', 'package.json'))
+        local major = package and tonumber((package.version or ''):match '^(%d+)')
+        if major and major >= 7 and vim.fn.executable(tsc) == 1 then
+          return tsc
+        end
+        local tsgo = vim.fs.joinpath(root, 'node_modules', '.bin', 'tsgo')
+        if vim.fn.executable(tsgo) == 1 then
+          return tsgo
+        end
+      end
+      local typescript_root = vim.lsp.config.ts_ls.root_dir
+
       local servers = {
         intelephense = {},
+        laravel_lsp = {
+          cmd = { 'laravel-lsp' },
+          filetypes = { 'php', 'blade' },
+          root_dir = function(bufnr, on_dir)
+            local root = vim.fs.root(bufnr, 'artisan')
+            if root then
+              on_dir(root)
+            end
+          end,
+        },
         tailwindcss = {},
         gopls = {},
         rust_analyzer = {},
-        ts_ls = {},
+        -- TypeScript 7 ships the native language server as `tsc --lsp`.
+        -- Prefer the workspace version so editor diagnostics match the project.
+        tsgo = {
+          root_dir = function(bufnr, on_dir)
+            typescript_root(bufnr, function(root)
+              if native_typescript(root) then
+                on_dir(root)
+              end
+            end)
+          end,
+          cmd = function(dispatchers, config)
+            local root_dir = (config or {}).root_dir or vim.fn.getcwd()
+            return vim.lsp.rpc.start({ assert(native_typescript(root_dir), 'No workspace native TypeScript compiler'), '--lsp', '--stdio' }, dispatchers)
+          end,
+        },
+        ts_ls = {
+          root_dir = function(bufnr, on_dir)
+            typescript_root(bufnr, function(root)
+              if not native_typescript(root) then
+                on_dir(root)
+              end
+            end)
+          end,
+        },
         lua_ls = {
           settings = {
             Lua = {
@@ -138,7 +193,10 @@ return {
         svelte = {},
       }
 
-      local ensure_installed = vim.tbl_keys(servers or {})
+      -- tsgo is supplied by each TypeScript 7 workspace, and Laravel LSP by Composer.
+      local ensure_installed = vim.tbl_filter(function(server_name)
+        return server_name ~= 'tsgo' and server_name ~= 'laravel_lsp'
+      end, vim.tbl_keys(servers or {}))
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
         'blade-formatter',
@@ -147,23 +205,21 @@ return {
         'prettier',
         'oxfmt',
         'rustywind',
+        'golangci-lint',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
       require('mason-lspconfig').setup {
         ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
-        automatic_installation = false,
-        handlers = {
-          function(server_name)
-            local server = servers[server_name] or {}
-            -- This handles overriding only values explicitly passed
-            -- by the server configuration above. Useful when disabling
-            -- certain features of an LSP (for example, turning off formatting for ts_ls)
-            server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-            require('lspconfig')[server_name].setup(server)
-          end,
-        },
+        -- Do not start stale servers just because they remain installed in Mason.
+        automatic_enable = false,
       }
+
+      for server_name, server in pairs(servers) do
+        server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
+        vim.lsp.config(server_name, server)
+        vim.lsp.enable(server_name)
+      end
     end,
   },
 }

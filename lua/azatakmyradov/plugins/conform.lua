@@ -8,7 +8,9 @@ local function web_formatters(bufnr)
     table.insert(formatters, 'prettier')
   end
 
-  table.insert(formatters, 'rustywind')
+  if require('azatakmyradov.buffers').uses_tailwind(bufnr) then
+    table.insert(formatters, 'rustywind')
+  end
 
   return formatters
 end
@@ -21,7 +23,7 @@ return { -- Autoformat
     notify_on_error = false,
     format_on_save = function(bufnr)
       local disable_filetypes = { c = true, cpp = true }
-      if disable_filetypes[vim.bo[bufnr].filetype] then
+      if disable_filetypes[vim.bo[bufnr].filetype] or require('azatakmyradov.buffers').is_large(bufnr) then
         return nil
       else
         return {
@@ -37,9 +39,15 @@ return { -- Autoformat
       typescriptreact = web_formatters,
       javascriptreact = web_formatters,
       svelte = web_formatters,
-      blade = { 'blade-formatter', 'rustywind' },
-      php = { 'pint', 'php_cs_fixer' },
-      json = { 'fixjson' },
+      blade = function(bufnr)
+        return require('azatakmyradov.buffers').uses_tailwind(bufnr) and { 'blade-formatter', 'rustywind' } or { 'blade-formatter' }
+      end,
+      php = function(bufnr)
+        local root = vim.fs.root(bufnr, { 'pint.json', 'artisan', 'vendor/bin/pint' })
+        return root and { 'pint' } or { 'php_cs_fixer' }
+      end,
+      json = { 'oxfmt', 'prettier', stop_after_first = true },
+      jsonc = { 'oxfmt', 'prettier', stop_after_first = true },
     },
   },
 }

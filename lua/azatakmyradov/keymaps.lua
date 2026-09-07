@@ -52,7 +52,15 @@ vim.keymap.set('n', '<C-f>', '<cmd>!tmux neww tmux-sessionizer<CR>', { silent = 
 vim.keymap.set('n', '<C-x>', '<cmd>!tmux neww tmux-cht.sh<CR>', { silent = true })
 
 -- make current file executable
-vim.keymap.set('n', '<leader>x', '<cmd>!chmod +x %<CR>', { silent = true })
+vim.keymap.set('n', '<leader>x', function()
+  vim.system({ 'chmod', '+x', vim.api.nvim_buf_get_name(0) }, {}, function(result)
+    if result.code ~= 0 then
+      vim.schedule(function()
+        vim.notify(result.stderr, vim.log.levels.ERROR)
+      end)
+    end
+  end)
+end, { desc = 'Make file executable' })
 
 -- When text is wrapped, move by terminal rows, not lines, unless a count is provided.
 vim.keymap.set('n', 'j', "v:count == 0 ? 'gj' : 'j'", { expr = true })
@@ -76,8 +84,10 @@ vim.keymap.set('v', 'p', '"_dP')
 vim.keymap.set('i', ';;', '<Esc>A;')
 vim.keymap.set('i', ',,', '<Esc>A,')
 
--- Open the current file in the default program (on Mac this should just be just `open`).
-vim.keymap.set('n', '<Leader>x', ':!open %<CR><CR>')
+-- Open the current file in the default program.
+vim.keymap.set('n', '<leader>ox', function()
+  vim.ui.open(vim.api.nvim_buf_get_name(0))
+end, { desc = 'Open file externally' })
 
 -- Move lines up and down.
 vim.keymap.set('i', '<a-j>', '<esc>:move .+1<cr>==gi')
@@ -115,7 +125,9 @@ vim.keymap.set('n', "<leader>'g", ':Git<CR>')
 -- vim.keymap.set('v', '<C-s>', '<Esc>:w<CR>')
 
 -- Enter ZenMode
-vim.keymap.set('n', '<leader>zz', ':ZenMode<CR>')
+vim.keymap.set('n', '<leader>zz', function()
+  require('snacks').zen()
+end, { desc = 'Toggle zen mode' })
 
 -- Treesitter
 vim.keymap.set('n', '<F2>', vim.lsp.buf.rename)
@@ -128,18 +140,6 @@ vim.keymap.set('n', '<C-k>', vim.lsp.buf.signature_help)
 -- Run current lua file
 vim.keymap.set('n', '<leader><leader>x', ':w<CR> <bar> :source %<CR>')
 vim.keymap.set('n', '<leader>,t', ':PlenaryBustedFile %<CR>')
-
--- TailwindCSS
-vim.keymap.set('n', '<leader>tc', function()
-  local supported_filetypes = { 'html', 'blade', 'typescriptreact', 'svelte', 'javascriptreact' }
-  local filetype = vim.bo.filetype
-
-  for _, value in ipairs(supported_filetypes) do
-    if value == filetype then
-      vim.cmd 'TailwindConcealToggle'
-    end
-  end
-end)
 
 vim.keymap.set('n', '<leader>of', ':lua vim.diagnostic.open_float()<CR>')
 
